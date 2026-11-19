@@ -8,7 +8,7 @@
   進出場    T 開盤賣、收盤買回；收盤鎖漲停 → 補在之後第一個沒鎖的收盤
   券源      T 當天融券與當沖先賣後買都被暫停，只能借券；借不借得到是這個策略最大的未知
   成本      手續費 5.7 bp + 證交稅 30 bp + 借券費（假設年化 6%、借 7 天 ≈ 11.5 bp）= 47.2 bp
-  部位      每檔 30 萬
+  部位      當天所有訊號等權；日報酬 = 當天各筆淨報酬的平均
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ import sys
 
 import polars as pl
 
-from common import COST_OVERNIGHT, RES, UNIT, by_year, load_panel, sharpe
+from common import COST_OVERNIGHT, RES, by_year, load_panel, sharpe
 
 BORROW = 0.06 * 7 / 365
 COST = COST_OVERNIGHT + BORROW
@@ -73,18 +73,18 @@ def main() -> None:
     p(tab(sel.with_columns(w=pl.when(pl.col("weak")).then(pl.lit("60日線下")).otherwise(pl.lit("60日線上"))), ["w"]))
     p("\n=== 主版本 × 月份（事件集中在股東會與除息旺季）===")
     p(tab(sel.with_columns(月=pl.col("date").dt.month()), ["月"]))
-    d = days.join(sel.group_by("date").agg(n=pl.len(), pnl=(pl.col("r") * UNIT).sum()), on="date", how="left") \
+    d = days.join(sel.group_by("date").agg(n=pl.len(), pnl=pl.col("r").mean()), on="date", how="left") \
         .with_columns(pl.col("n").fill_null(0), pl.col("pnl").fill_null(0.0))
     d.write_csv(RES / "02_short_cover_daily.csv")
-    p(f"\n=== 主版本逐年（每檔 30 萬；有訊號 {int((d['n'] > 0).sum())}/{len(d)} 天，單日最多 {d['n'].max()} 檔）===")
+    p(f"\n=== 主版本逐年（當日等權；有訊號 {int((d['n'] > 0).sum())}/{len(d)} 天，單日最多 {d['n'].max()} 檔）===")
     p(by_year(d, "pnl"))
     p("\n=== 成本敏感度：借券費從 0 到年化 20%（借 7 天）===")
     rows = []
     for rate in (0.0, 0.03, 0.06, 0.10, 0.20):
         adj = sel["r"] + BORROW - rate * 7 / 365
-        dd = days.join(sel.with_columns(a=adj).group_by("date").agg(pnl=(pl.col("a") * UNIT).sum()), on="date", how="left") \
+        dd = days.join(sel.with_columns(a=adj).group_by("date").agg(pnl=pl.col("a").mean()), on="date", how="left") \
             .with_columns(pl.col("pnl").fill_null(0.0))
-        rows.append({"借券年化": f"{rate:.0%}", "每筆淨bp": adj.mean() * 1e4, "sharpe": sharpe(dd["pnl"]), "累積_萬": dd["pnl"].sum() / 1e4})
+        rows.append({"借券年化": f"{rate:.0%}", "每筆淨bp": adj.mean() * 1e4, "sharpe": sharpe(dd["pnl"]), "累積%": dd["pnl"].sum() * 100})
     p(pl.DataFrame(rows))
     out.close()
 

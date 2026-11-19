@@ -8,7 +8,6 @@ import polars as pl
 ROOT = Path(__file__).resolve().parents[1]
 RES = ROOT / "results"
 FIG = ROOT / "figures"
-UNIT = 300_000  # 每檔固定 30 萬（等資本）
 
 # 成本（單邊手續費 0.1425% × 2 折）
 FEE_RT = 0.001425 * 0.2 * 2          # 來回手續費 5.7 bp
@@ -29,12 +28,12 @@ def sharpe(s: pl.Series) -> float:
 
 
 def daily_stats(d: pl.DataFrame, col: str, label: str) -> dict:
-    """d：每個交易日一列（沒部位的日子 = 0），col = 當日損益（元）。"""
+    """d：每個交易日一列，col = 當日報酬（當天所有部位等權平均；沒部位的日子 = 0）。"""
     eq = d[col].cum_sum()
     return {
-        "組": label, "交易日": len(d), "日均損益_萬": d[col].mean() / 1e4, "sharpe": sharpe(d[col]),
-        "累積_萬": d[col].sum() / 1e4, "最大回撤_萬": (eq - eq.cum_max()).min() / 1e4,
-        "最差一日_萬": d[col].min() / 1e4, "賺錢日%": (d[col] > 0).mean() * 100,
+        "組": label, "交易日": len(d), "日均bp": d[col].mean() * 1e4, "sharpe": sharpe(d[col]),
+        "累積%": d[col].sum() * 100, "最大回撤%": (eq - eq.cum_max()).min() * 100,
+        "最差一日%": d[col].min() * 100, "賺錢日%": (d[col] > 0).mean() * 100,
     }
 
 

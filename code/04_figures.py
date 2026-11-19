@@ -30,9 +30,9 @@ fig, axes = plt.subplots(1, 3, figsize=(16, 4.8), facecolor=SURF)
 
 d = pl.read_csv(RES / "02_short_cover_daily.csv", try_parse_dates=True)
 ax = axes[0]
-ax.plot(d["date"], d["pnl"].cum_sum() / 1e4, color=BLUE, linewidth=2)
-style(ax, "① 融券回補結束後空\n每檔 30 萬，累積損益", "萬元")
-ax.annotate(f"{d['pnl'].sum() / 1e4:,.0f} 萬", (d["date"][-1], d["pnl"].sum() / 1e4), xytext=(-6, 6),
+ax.plot(d["date"], d["pnl"].cum_sum() * 100, color=BLUE, linewidth=2)
+style(ax, "① 融券回補結束後空\n當日等權，累積報酬（單利）", "%")
+ax.annotate(f"{d['pnl'].sum() * 100:,.0f}%", (d["date"][-1], d["pnl"].sum() * 100), xytext=(-6, 6),
             textcoords="offset points", ha="right", fontsize=10, color=INK)
 
 ax = axes[1]
@@ -49,9 +49,9 @@ ax.set_ylim(min(e["r"].min() - 3, -4), e["r"].max() + 3)
 
 d = pl.read_csv(RES / "01_surge_fade_daily.csv", try_parse_dates=True)
 ax = axes[2]
-ax.plot(d["date"], d["raw"].cum_sum() / 1e4, color=BLUE, linewidth=2)
-style(ax, "③ 急漲隔日空（當沖）\n每檔 30 萬，累積損益，未對沖", "萬元")
-ax.annotate(f"{d['raw'].sum() / 1e4:,.0f} 萬", (d["date"][-1], d["raw"].sum() / 1e4), xytext=(-6, 6),
+ax.plot(d["date"], d["raw"].cum_sum() * 100, color=BLUE, linewidth=2)
+style(ax, "③ 弱勢股急漲隔日空（當沖）\n當日等權，累積報酬（單利），未對沖", "%")
+ax.annotate(f"{d['raw'].sum() * 100:,.0f}%", (d["date"][-1], d["raw"].sum() * 100), xytext=(-6, 6),
             textcoords="offset points", ha="right", fontsize=10, color=INK)
 
 fig.tight_layout(w_pad=3)

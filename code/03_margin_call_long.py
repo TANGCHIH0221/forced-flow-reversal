@@ -7,7 +7,7 @@
   可交易    D−1 融資餘額 ≥ 1,000 張、20 日均成交額 ≥ 2,000 萬、不在處置期間
   第一天    同一次急殺（相隔 ≤10 個交易日算同一次）的第一個急殺日不進場：追繳到真正被賣要兩三天
   進出場    D+1 開盤買、抱 5 個交易日、收盤賣；同一次急殺每檔只進一次
-  成本      手續費 5.7 bp + 證交稅 30 bp = 35.7 bp；每檔 30 萬
+  成本      手續費 5.7 bp + 證交稅 30 bp = 35.7 bp；同一次急殺內各檔等權
 樣本只有十次左右的急殺，這裡不報 Sharpe，逐次列出。
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ import sys
 
 import polars as pl
 
-from common import COST_OVERNIGHT, RES, UNIT, load_panel
+from common import COST_OVERNIGHT, RES, load_panel
 
 
 def main() -> None:
@@ -54,15 +54,15 @@ def main() -> None:
         g = t.group_by("ep").agg(
             檔數=pl.len(), 抱5日淨=pl.col("r5").mean() * 100, 勝率=(pl.col("r5") > 0).mean() * 100,
             抱10日淨=pl.col("r10").mean() * 100, 五日內最深=pl.col("dd5").mean() * 100,
-            最深p10=pl.col("dd5").quantile(0.1) * 100, 損益_萬=(pl.col("r5") * UNIT).sum() / 1e4)
+            最深p10=pl.col("dd5").quantile(0.1) * 100)
         return names.join(g, on="ep", how="left").sort("急殺起").drop("ep")
 
     def total(df: pl.DataFrame, lab: str) -> dict:
         t = df.sort("date").unique(["ep", "stock_id"], keep="first")
-        e = t.group_by("ep").agg(m=pl.col("r5").mean(), pnl=(pl.col("r5") * UNIT).sum())
+        e = t.group_by("ep").agg(m=pl.col("r5").mean())
         return {"版本": lab, "檔數": len(t), "有進場次數": len(e), "正的次數": int((e["m"] > 0).sum()),
                 "每檔淨%": t["r5"].mean() * 100, "每次平均淨%": e["m"].mean() * 100, "最差一次%": e["m"].min() * 100,
-                "勝率": (t["r5"] > 0).mean() * 100, "累積_萬": e["pnl"].sum() / 1e4, "最差一次_萬": e["pnl"].min() / 1e4}
+                "勝率": (t["r5"] > 0).mean() * 100}
 
     main_ev = ev.filter(pl.col("day_no") >= 2)
     main_ev.sort("date").unique(["ep", "stock_id"], keep="first").select(
